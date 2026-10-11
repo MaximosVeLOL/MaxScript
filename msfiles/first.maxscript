@@ -1,0 +1,15 @@
+import std.io;
+
+
+
+
+//Automatically becomes a const int()
+//int automatically becomes a signed int32
+unsigned int8 main() {
+	int32 max = 0;
+	
+	
+	//std::print("Hello, World!");
+
+	return 0;
+}
