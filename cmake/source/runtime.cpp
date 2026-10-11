@@ -76,7 +76,9 @@ namespace Runtime {
 	}
 
 	void Execute() {
-		for (CBytecode& c : g_Program->code) {
+
+		for (size_t i = g_Program->funcData.at(0).fileOffset; i < g_Program->code.size();i++) {
+			CBytecode& c = g_Program->code.at(i);
 			c.Execute();
 		}
 	}

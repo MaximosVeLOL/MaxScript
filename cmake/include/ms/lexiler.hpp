@@ -140,10 +140,15 @@ public:
 				continue;
 			}
 			size_t lastSpace = 0;
-			for (i = 0; i < curLine.length();i++) {
+			size_t curLineLength = curLine.length();
+			for (i = 0; i < curLineLength;i++) {
 				const char& curChar = curLine.at(i);
-				std::string s = "";
-				s += curChar;
+				if (curChar == '\n' || curChar == '\t') {
+					curLine = curLine.substr(i + 1);
+					i -= 1;
+					curLineLength = curLine.length();
+					continue;
+				}
 				switch (curChar) {
 				case ' ': {
 					size_t lI = lastSpace;
@@ -236,9 +241,10 @@ public:
 					gotWholeLine = false;
 					break;
 				}
-
+				std::string curCharAsStr;
+				curCharAsStr += curChar;
 				for (CKeyBase* b : m_Keys) {
-					if (b->Handle(s)) {
+					if (b->Handle(curCharAsStr)) {
 						if (b->s_GetWholeLine) {
 							CBytecode c = b->Execute(curLine);
 							if (c.instruction > IN_NOP)
@@ -356,7 +362,7 @@ public:
 					}
 				}
 				m_Parent->m_Functions.push_back(CFunctionDefinition{ varName, detectedType, params });
-				m_Parent->m_Output.funcData.push_back(Executable::CFunction{ static_cast<u8>(params.size()), m_Parent->m_Output.code.size() });
+				m_Parent->m_Output.funcData.push_back(Executable::CFunction{ static_cast<u8>(params.size()), m_Parent->m_Output.code.size() + 1 });
 				m_Parent->m_CurrentFunction = &m_Parent->m_Functions.back();
 				ret.instruction = IN_STARTREGION;
 				ret.arg1 = REGION_FUNCTION;
@@ -524,9 +530,10 @@ public:
 			}
 		};
 
-		struct CKW_EndFunction : CKeyLetter {
-			CKW_EndFunction() {
+		struct CKL_EndFunction : CKeyLetter {
+			CKL_EndFunction() {
 				m_Letter = '}';
+				s_GetWholeLine = true;
 			}
 			CBytecode Execute(const std::string& p_String) {
 				return CBytecode(IN_ENDREGION);
@@ -558,13 +565,15 @@ public:
 					throw std::runtime_error("Failed to get return value as an u32!");
 				}
 				ret.arg3 = val;
-
+				return ret;
 			}
 		};
 
 		m_Keys.push_back(new CKL_VarDefine());
 		m_Keys.push_back(new CKL_StringConstant());
 		m_Keys.push_back(new CKL_Call());
+		m_Keys.push_back(new CKW_Return());
+		m_Keys.push_back(new CKL_EndFunction());
 
 
 		for (CKeyBase* b : m_Keys) {
