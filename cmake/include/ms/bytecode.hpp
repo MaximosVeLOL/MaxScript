@@ -2,15 +2,9 @@
 
 #include <ms/types.hpp>
 #include <functional>
-#include <ms/runtime.hpp>
+#include <ms/common.hpp>
 
-
-
-struct CArguments {
-	u32 arg1;
-	u32 arg2;
-	u32 arg3;
-};
+MS_BEGIN
 
 
 enum EInstruction : u8 {
@@ -38,6 +32,9 @@ enum EInstruction : u8 {
 	IN_AMOUNT,
 };
 
+namespace Runtime {
+	class CRuntime;
+}
 
 struct CBytecode {
 
@@ -47,10 +44,10 @@ struct CBytecode {
 	u32 arg3 = 0;
 
 
-	void Execute();
+	void Execute(Runtime::CRuntime& p_Runtime);
 	CBytecode() {}
 	CBytecode(EInstruction p_In, u32 p_a1 = 0, u32 p_a2 = 0, u32 p_a3 = 0) : instruction(p_In), arg1(p_a1), arg2(p_a2), arg3(p_a3) {}
 };
 
 
-
+MS_END

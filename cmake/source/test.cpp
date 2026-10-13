@@ -1,12 +1,15 @@
 #include <ms/lexiler.hpp>
 #include <ms/runtime.hpp>
-
+using namespace ms;
 int main() {
-	Prepare();
+	Runtime::Functional::Initialize();
 	CLexiler l;
-	l.ParseFile();
-	Runtime::Prepare();
-	Runtime::g_Program = &l.m_Output;
-	Runtime::Execute();
+	Runtime::CProgram program;
+	l.ParseFile(&program);
+	Runtime::CRuntime r = Runtime::CRuntime();
+	r.Prepare();
+	r.m_Program = program;
+	r.ExecuteAll();
+
 	return 0;
 }

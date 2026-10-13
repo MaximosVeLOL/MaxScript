@@ -1,18 +1,29 @@
 #pragma once
 
 #include <ms/types.hpp>
+#include <ms/common.hpp>
 #include <ms/runtime.hpp>
-class SystemFunction;
-extern std::vector<SystemFunction*>& GetAllSysFunctions();
-
-class SystemFunction {
-public:
-	virtual const char* GetName() { return nullptr; };
-	virtual std::vector<EVariableType> GetParams() { return { VARIABLE_VOID }; };
-	virtual void Execute() {};
-};
+#include <ms/impl/list.hpp>
 
 
-extern void Prepare();
+MS_BEGIN
 
-//extern std::vector<SystemFunction*> g_AllSysFunctions;
+
+namespace Runtime {
+
+	namespace Functional {
+
+		class CSystemFunction {
+		public:
+			virtual const char* GetName() = 0;
+			virtual constexpr std::initializer_list<EVariableType> GetParams() = 0;
+			virtual void Execute(CRuntime& p_Runtime) = 0;
+		};
+		//u32 since this can be modified by user, add a Count template initializer if you want to.
+		extern MS_API LangStd::CList<CSystemFunction*> g_AllSysFunctions;
+
+		extern MS_API void Initialize();
+	}
+}
+
+MS_END

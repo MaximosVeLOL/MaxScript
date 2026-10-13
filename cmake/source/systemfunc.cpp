@@ -1,27 +1,35 @@
 #include <ms/systemfunc.hpp>
 #include <ms/bytecode.hpp>
-
 #include <print>
 
+MS_BEGIN
+
+namespace Runtime {
+
+	namespace Functional {
+
 #define CREATE(nameString, name, params, code) \
-class SYSFUNCTION_##name##_DEFINITION : public SystemFunction { \
+class CSYSFUNCTION_##name##_DEFINITION : public CSystemFunction { \
 public: \
 	const char* GetName() override {return nameString;} \
-	std::vector<EVariableType> GetParams() override {return params;} \
-	void Execute() override code \
+	constexpr std::initializer_list<EVariableType> GetParams() override {return params;} \
+	void Execute(CRuntime& p_Runtime) override code \
 };
 
-CREATE("print", print, {VARIABLE_STATICREF}, {
-	std::println("{}", Runtime::GetStringFromRegister(REG_R0));
+		CREATE("print", print, {VARIABLE_STATICREF}, {
+			std::println("{}", p_Runtime.GetStringFromRegister(REG_R0));
 
-	});
+			});
 
-std::vector<SystemFunction*> g_AllSysFunctions;
+		LangStd::CList<CSystemFunction*> g_AllSysFunctions;
 
-std::vector<SystemFunction*>& GetAllSysFunctions() {
-	return g_AllSysFunctions;
+		void Initialize() {
+			g_AllSysFunctions.push(new CSYSFUNCTION_print_DEFINITION());
+		}
+
+
+	}
+
 }
 
-void Prepare() {
-	g_AllSysFunctions.push_back(new SYSFUNCTION_print_DEFINITION());
-}
+MS_END

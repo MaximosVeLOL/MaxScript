@@ -1,85 +1,114 @@
 #include <ms/runtime.hpp>
-#include <functional>
 #include <ms/systemfunc.hpp>
+#include <ms/bytecode.hpp>
 
-u8* MEM_HEAP = nullptr;
-u8 MEM_STACK[sizeof(CVariable) * 32]{0};
-bool MEM_STACK_FREES[32]{ true }; //True if free
-u8 MEM_REGISTERS[(sizeof(CVariable) * 6) + 16 + (/*Safe space*/8)]{0};
-
-
-
-#define AS_KILOBYTE(x) ((x) * 1024)
-#define AS_MEGABYTE(x) ((x) * (1024 * 1024) )
-#define AS_GIGABYTE(X) ((x) * (1024 * 1024 * 1024) )
-
-instruction_t DEF_NOP = [](u32 p1 = 0, u32 p2 = 0, u32 p3 = 0) -> bool {
-	Log("NOP executed");
-	return true;
-};
-
-instruction_t INSTRUCTIONS[IN_AMOUNT] = {
-	DEF_NOP,
-	DEF_NOP,
-	DEF_NOP,
-	//Set stack
-	[](u32 p_Offset, u32 p_Type, u32 p_Value) -> bool {
-		if (p_Offset == 0) {
-			for (u8 i = 0; i < 32;i++) {
-				if (MEM_STACK_FREES[i]) {
-					MEM_STACK_FREES[i] = false;
-					p_Offset = (i * sizeof(CVariable));
-				}
-			}
-		}
-		CVariable* offset = reinterpret_cast<CVariable*>(MEM_STACK + p_Offset);
-		//offset->m_Type = static_cast<EVariableType>(p_Type);
-		offset->Initialize(static_cast<EVariableType>(p_Type), &p_Value);
-		return true;
-	},
-	//Set heap
-	[](u32 p_Offset, u32 p_Type, u32 p_Value) -> bool {
-
-		CVariable* offset = reinterpret_cast<CVariable*>(MEM_HEAP + p_Offset);
-		//offset->m_Type = static_cast<EVariableType>(p_Type);
-		offset->Initialize(static_cast<EVariableType>(p_Type), &p_Value);
-		return true;
-	},
-	//Set register
-	[](u32 p_Offset, u32 p_Type, u32 p_Value) -> bool {
-		if (p_Offset == 0) {
-
-		}
-		CVariable* offset = reinterpret_cast<CVariable*>(MEM_HEAP + p_Offset);
-		//offset->m_Type = static_cast<EVariableType>(p_Type);
-		offset->Initialize(static_cast<EVariableType>(p_Type), &p_Value);
-		return true;
-	},
-	[](u32 p_ID, u32, u32) -> bool {
-		GetAllSysFunctions().at(p_ID)->Execute();
-		return true;
-	}
-
-};
+MS_BEGIN
 
 
 
 namespace Runtime {
 
-	CProgram* g_Program = nullptr;
+#pragma region CRuntime
 
-	void Prepare() {
-		if (MEM_HEAP) {
-			delete[] MEM_HEAP;
-		}
-		MEM_HEAP = new u8[1024]; //1 KB of memory
+	CRuntime::CRuntime() {
+		Prepare();
+	}
+	CRuntime::~CRuntime() {
+		delete[] m_Memory.heap;
 	}
 
-	void Execute() {
+	void CRuntime::Load(const char* p_Path) {
 
-		for (size_t i = g_Program->funcData.at(0).fileOffset; i < g_Program->code.size();i++) {
-			CBytecode& c = g_Program->code.at(i);
-			c.Execute();
+	}
+
+	void CRuntime::Prepare() {
+		if (m_Memory.heap) {
+			delete[] m_Memory.heap;
+		}
+		m_Memory.heap = new u8[1024]; //1 KB of memory
+	}
+
+	void CRuntime::ExecuteStep() {
+		m_Program.code.at(m_ProgIndex++).Execute(*this);
+	}
+
+	void CRuntime::ExecuteAll() {
+		for (m_ProgIndex = m_Program.funcData.at(0).fileOffset; m_ProgIndex < m_Program.code.size();m_ProgIndex++) {
+			m_Program.code.at(m_ProgIndex++).Execute(*this);
 		}
 	}
+
+	Executable::CData* CRuntime::GetDataFromRegister(u32 p_ID) {
+		return &m_Program.data.at(p_ID);
+	}
+
+	char* CRuntime::GetStringFromRegister(u32 p_ID) {
+		return reinterpret_cast<char*>(m_Program.data.at(p_ID).content);
+	}
+
+	CVariable* CRuntime::GetVarRegister(ERegisterType p_Type) {
+		if (p_Type > REG_R6) {
+			throw std::runtime_error("We are getting a invalid register (not a CVariable register!)");
+		}
+		return reinterpret_cast<CVariable*>(m_Memory.registers[p_Type]);
+	}
+#pragma endregion
+
+	instruction_t DEF_NOP = [](CRuntime& rt, u32 p1 = 0, u32 p2 = 0, u32 p3 = 0) -> bool {
+		Log("NOP executed");
+		return true;
+		};
+	instruction_t INSTRUCTIONS[IN_AMOUNT] = {
+		DEF_NOP,
+		DEF_NOP,
+		DEF_NOP,
+		//Set stack
+		[](CRuntime& p_Runtime, u32 p_Offset, u32 p_Type, u32 p_Value) -> bool {
+			if (p_Offset == 0) {
+				for (u8 i = 0; i < 32;i++) {
+					if (p_Runtime.m_Memory.stackFrees[i]) {
+						p_Runtime.m_Memory.stackFrees[i] = false;
+						p_Offset = (i * sizeof(CVariable));
+					}
+				}
+			}
+			CVariable* offset = reinterpret_cast<CVariable*>(p_Runtime.m_Memory.stack + p_Offset);
+			//offset->m_Type = static_cast<EVariableType>(p_Type);
+			offset->Initialize(static_cast<EVariableType>(p_Type), &p_Value);
+			return true;
+		},
+		//Set heap
+		[](CRuntime& p_Runtime, u32 p_Offset, u32 p_Type, u32 p_Value) -> bool {
+
+			CVariable* offset = reinterpret_cast<CVariable*>(p_Runtime.m_Memory.heap + p_Offset);
+			//offset->m_Type = static_cast<EVariableType>(p_Type);
+			offset->Initialize(static_cast<EVariableType>(p_Type), &p_Value);
+			return true;
+		},
+		//Set register
+		[](CRuntime& p_Runtime, u32 p_Offset, u32 p_Type, u32 p_Value) -> bool {
+			if (p_Offset == 0) {
+
+			}
+			CVariable* offset = reinterpret_cast<CVariable*>(p_Runtime.m_Memory.registers + p_Offset);
+			//offset->m_Type = static_cast<EVariableType>(p_Type);
+			offset->Initialize(static_cast<EVariableType>(p_Type), &p_Value);
+			return true;
+		},
+		[](CRuntime& p_Runtime, u32 p_ID, u32, u32) -> bool {
+			Functional::g_AllSysFunctions.at(p_ID)->Execute(p_Runtime);
+			return true;
+		},
+		DEF_NOP,
+		DEF_NOP,
+		DEF_NOP,
+		DEF_NOP,
+		DEF_NOP,
+		DEF_NOP,
+		DEF_NOP,
+
+	};
+	//instruction_t INSTRUCTIONS[IN_AMOUNT] = { DEF_NOP };
 }
+
+MS_END
