@@ -10,7 +10,7 @@ if (POLICY CMP0141)
 endif()
 
 
-add_executable("MaxScript" "source/test.cpp" "source/runtime.cpp" "source/systemfunc.cpp" "source/bytecode.cpp")
+add_executable("MaxScript" "source/test.cpp" "source/runtime.cpp" "source/systemfunc.cpp" "source/bytecode.cpp" "natvis/clist.natvis")
 
 set_property(TARGET MaxScript PROPERTY CXX_STANDARD 23)
 

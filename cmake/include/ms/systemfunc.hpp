@@ -16,7 +16,7 @@ namespace Runtime {
 		class CSystemFunction {
 		public:
 			virtual const char* GetName() = 0;
-			virtual constexpr std::initializer_list<EVariableType> GetParams() = 0;
+			virtual u8 const* GetParams() = 0;
 			virtual void Execute(CRuntime& p_Runtime) = 0;
 		};
 		//u32 since this can be modified by user, add a Count template initializer if you want to.

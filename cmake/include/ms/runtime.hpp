@@ -45,9 +45,11 @@ namespace Runtime {
 
 	//using bytecodes_t = LangStd::CList<CBytecode>;
 
+	
 	class CRuntimeError : public std::runtime_error {
 	public:
-		CRuntimeError(const char* p_Message) : std::runtime_error(p_Message) {
+		template<typename... Args>
+		CRuntimeError(std::format_string<Args...> p_Format, Args&&... p_Args) : std::runtime_error(std::format(p_Format, p_Args...)) {
 
 		}
 	};
@@ -66,6 +68,11 @@ namespace Runtime {
 			//u32 id = 0;
 			u8 neededStackVariables = 0;
 			size_t fileOffset = 0;
+		};
+		struct CDebugInfo {
+			LangStd::CList<const char*> funcNames;
+			LangStd::CList<LangStd::CList<const char*>> funcVarNames;
+
 		};
 	}
 
@@ -305,19 +312,33 @@ namespace Runtime {
 
 
 
-	enum ERegisterType : u8 {
+	enum ERegister : u8 {
 		REG_R0 = 0,
-		REG_R1 = (sizeof(CVariable) * 1),
-		REG_R2 = (sizeof(CVariable) * 2),
-		REG_R3 = (sizeof(CVariable) * 3),
-		REG_R4 = (sizeof(CVariable) * 4),
-		REG_R5 = (sizeof(CVariable) * 5),
-		REG_R6 = (sizeof(CVariable) * 6),
+		REG_R1, //24
+		REG_R2, //48
+		REG_R3, //72
+		REG_R4, //96
+		REG_R5, //120
+		REG_R6 = (sizeof(CVariable) * 6), //144
 		//These can be up to 32 bit values
-		REG_N1 = (REG_R6 + 1),
-		REG_N2 = (REG_N1 + 4),
-		REG_N3 = (REG_N2 + 4),
-		REG_RETVALUE = (REG_N2 + 4), //This is a CVariable btw
+		REG_N1,
+		REG_N2,
+		REG_N3,
+		REG_RETVALUE,
+		REG_AMOUNT
+	};
+	const u8 ERegister_OFFSETS[REG_AMOUNT] = {
+		0,
+		(sizeof(CVariable) * 1),
+		(sizeof(CVariable) * 2),
+		(sizeof(CVariable) * 3),
+		(sizeof(CVariable) * 4),
+		(sizeof(CVariable) * 5),
+		(sizeof(CVariable) * 6),
+		((sizeof(CVariable) * 6) + 1),
+		((sizeof(CVariable) * 6) + 5),
+		((sizeof(CVariable) * 6) + 9),
+		((sizeof(CVariable) * 6) + 13),
 
 	};
 
@@ -325,13 +346,38 @@ namespace Runtime {
 		LangStd::CList<Executable::CData> data;
 		LangStd::CList<Executable::CFunction> funcData;
 		LangStd::CList<CBytecode> code;
+		size_t entryIndex = 0; //This points to where our code begins. (eg. beginning of main() functions)
+		void DebugPrint() {
+			std::println("CProgram List:");
+			std::println("Data ({} entries)", data.length());
+			for (Executable::CData& d : data) {
+				std::print("(size = {})\t\"", d.contentSize);
+				for (u16 i = 0; i < d.contentSize;i++) {
+					std::print("{}", static_cast<char>(d.content[i]));
+				}
+				std::println("\"");
+			}
+			std::println("Function Data ({} entries)", funcData.length());
+			for (Executable::CFunction& f : funcData) {
+				std::println("offset: {}, parameter count: {}", f.fileOffset, f.neededStackVariables);
+			}
+			std::println("Bytecode:");
+			for (u32 i = 0; i < code.length();i++) {
+				CBytecode& b = code[i];
+				std::println("({}) {} {} {} {}", i, EInstruction_TOSTRING[b.instruction], b.arg1, b.arg2, b.arg3);
+
+			}
+
+
+		}
+
 	};
 
 	class MS_API CRuntime {
 	private:
 
 	public:
-		struct {
+		struct { //1032 - 56 bytes used
 			u8* heap = nullptr;
 			u8 stack[sizeof(CVariable) * 32] = { 0 };
 			bool stackFrees[32] = { false };
@@ -340,6 +386,9 @@ namespace Runtime {
 
 		size_t m_ProgIndex = 0;
 		
+		LangStd::CList<size_t> m_CallIndexes; //Contains the code indexes of all IN_CALLS executed, so we can return to them.
+
+		void EndCurrentFunction();
 
 		CProgram m_Program;
 
@@ -355,7 +404,7 @@ namespace Runtime {
 
 		char* GetStringFromRegister(u32 p_ID);
 
-		CVariable* GetVarRegister(ERegisterType p_Type);
+		CVariable* GetVarRegister(ERegister p_Reg);
 
 		CRuntime();
 		~CRuntime();

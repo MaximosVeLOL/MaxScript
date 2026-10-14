@@ -5,7 +5,12 @@ int main() {
 	Runtime::Functional::Initialize();
 	CLexiler l;
 	Runtime::CProgram program;
-	l.ParseFile(&program);
+	ELexilerError error = l.ParseFile(&program);
+	if (error > LEXERR_NONE) {
+		Log("Failed to compile the program! Returning...");
+		return error;
+	}
+	program.DebugPrint();
 	Runtime::CRuntime r = Runtime::CRuntime();
 	r.Prepare();
 	r.m_Program = program;

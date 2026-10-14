@@ -33,9 +33,13 @@ namespace Runtime {
 	}
 
 	void CRuntime::ExecuteAll() {
-		for (m_ProgIndex = m_Program.funcData.at(0).fileOffset; m_ProgIndex < m_Program.code.size();m_ProgIndex++) {
+		for (m_ProgIndex = m_Program.entryIndex; m_ProgIndex < m_Program.code.size();m_ProgIndex++) {
 			m_Program.code.at(m_ProgIndex++).Execute(*this);
 		}
+	}
+	void CRuntime::EndCurrentFunction() {
+		m_ProgIndex = m_CallIndexes.back();
+		m_CallIndexes.pop();
 	}
 
 	Executable::CData* CRuntime::GetDataFromRegister(u32 p_ID) {
@@ -46,11 +50,11 @@ namespace Runtime {
 		return reinterpret_cast<char*>(m_Program.data.at(p_ID).content);
 	}
 
-	CVariable* CRuntime::GetVarRegister(ERegisterType p_Type) {
-		if (p_Type > REG_R6) {
+	CVariable* CRuntime::GetVarRegister(ERegister p_Reg) {
+		if (p_Reg > REG_R6) {
 			throw std::runtime_error("We are getting a invalid register (not a CVariable register!)");
 		}
-		return reinterpret_cast<CVariable*>(m_Memory.registers[p_Type]);
+		return reinterpret_cast<CVariable*>(m_Memory.registers[ERegister_OFFSETS[p_Reg]]);
 	}
 #pragma endregion
 
@@ -60,7 +64,10 @@ namespace Runtime {
 		};
 	instruction_t INSTRUCTIONS[IN_AMOUNT] = {
 		DEF_NOP,
-		DEF_NOP,
+		[](CRuntime& p_Runtime, u32, u32, u32) -> bool {
+			p_Runtime.EndCurrentFunction();
+			return true;
+		},
 		DEF_NOP,
 		//Set stack
 		[](CRuntime& p_Runtime, u32 p_Offset, u32 p_Type, u32 p_Value) -> bool {
@@ -90,7 +97,7 @@ namespace Runtime {
 			if (p_Offset == 0) {
 
 			}
-			CVariable* offset = reinterpret_cast<CVariable*>(p_Runtime.m_Memory.registers + p_Offset);
+			CVariable* offset = reinterpret_cast<CVariable*>(p_Runtime.m_Memory.registers + ERegister_OFFSETS[static_cast<ERegister>(p_Offset)]);
 			//offset->m_Type = static_cast<EVariableType>(p_Type);
 			offset->Initialize(static_cast<EVariableType>(p_Type), &p_Value);
 			return true;
@@ -99,7 +106,12 @@ namespace Runtime {
 			Functional::g_AllSysFunctions.at(p_ID)->Execute(p_Runtime);
 			return true;
 		},
-		DEF_NOP,
+		[](CRuntime& p_Runtime, u32 p_ID, u32, u32) -> bool {
+			//Hopefully this features no stupid errors!
+			p_Runtime.m_CallIndexes.push(p_Runtime.m_ProgIndex + 1);
+			p_Runtime.m_ProgIndex = p_Runtime.m_Program.funcData.at(p_ID).fileOffset;
+			return true;
+		},
 		DEF_NOP,
 		DEF_NOP,
 		DEF_NOP,

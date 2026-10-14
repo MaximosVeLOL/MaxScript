@@ -1,0 +1,11 @@
+<AutoVisualizer xmlns="http://microsoft.com">
+  <Type Name="ms::LangStd::CList">
+    <DisplayString>Size = {m_Length}</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>m_Length</Size>
+        <ValuePointer>m_Data</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

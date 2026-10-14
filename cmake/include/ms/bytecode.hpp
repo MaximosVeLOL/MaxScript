@@ -31,6 +31,22 @@ enum EInstruction : u8 {
 
 	IN_AMOUNT,
 };
+inline const char* EInstruction_TOSTRING[IN_AMOUNT] = {
+	"NOP",
+	"STARTREGION",
+	"ENDREGION",
+	"SETSTACK",
+	"SETHEAP",
+	"SETREG",
+	"CALLSYS",
+	"CALL",
+	"ADD",
+	"SUB",
+	"MUL",
+	"DIV",
+	"POW",
+	"SQRT",
+};
 
 namespace Runtime {
 	class CRuntime;

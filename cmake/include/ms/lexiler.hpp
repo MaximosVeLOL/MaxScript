@@ -100,7 +100,8 @@ enum ELexilerError : u8 {
 
 class CCompilerError : public std::runtime_error {
 public:
-	CCompilerError(const char* p_Message) : std::runtime_error(p_Message) {}
+	template<typename... Args>
+	CCompilerError(std::format_string<Args...> p_Format, Args&&... p_Args) : std::runtime_error(std::format(p_Format, p_Args...)) {}
 };
 
 
@@ -158,8 +159,13 @@ private:
 		//varValue = p_Line.substr(equals + 1);
 		//std::erase(varValue, ' ');
 
-		Log("Got a function definition!");
-		Log("{} {}();", varType, varName);
+		//Log("Got a function definition!");
+		//Log("{} {}();", varType, varName);
+		for (CFunctionDefinition& f : m_Functions) {
+			if (varName == f.m_Name) {
+				throw CCompilerError("Function name ({}) already exists!", varName);
+			}
+		}
 		Runtime::Executable::CFunction* f = new Runtime::Executable::CFunction();
 		LangStd::CList<EVariableType> params;
 
@@ -202,12 +208,20 @@ private:
 
 			}
 		}
-		CFunctionDefinition defToAdd = { varName.c_str(), p_DetectedType, params};
+		char* theName = new char[varName.length() + 1] {'\0'};
+		std::memcpy(theName, varName.data(), varName.length());
+		//I'm gonna nut all over the place if this doesn't work
+		CFunctionDefinition defToAdd = { theName, p_DetectedType, params};
 		m_Functions.push_back(defToAdd);
 		m_Output->funcData.push(Runtime::Executable::CFunction{ static_cast<u8>(params.size()), m_Output->code.size() + 1 });
 		m_CurrentFunction = &m_Functions.back();
 		ret.instruction = IN_STARTREGION;
 		ret.arg1 = Runtime::REGION_FUNCTION;
+		if (varName == "main") {
+			if (m_Output->entryIndex != 0)
+				throw CCompilerError("We already have an entry point! (Are two main functions defined?) (This should already be errored)");
+			m_Output->entryIndex = m_Output->code.size() + 1;
+		}
 		return ret;
 
 	}
@@ -435,9 +449,6 @@ public:
 			}
 			*/
 			CBytecode Execute(const std::string& p_String) override {
-				if (p_String.contains('{')) {
-					return CBytecode(); //return NOP
-				}
 				size_t callIndex = p_String.find_first_of('(');
 				std::string funcName = p_String.substr(0, callIndex);
 				size_t lastIndex = 0;
@@ -486,8 +497,11 @@ public:
 						lastIndex = i + 1;
 					}
 				}
-				Log("{}({});", funcName, argumentsVector);
-
+				std::print("{}(", funcName);
+				for (std::string& arg : argumentsVector) {
+					std::print("{}, ", arg);
+				}
+				Log(")");
 				CBytecode ret;
 				LangStd::CList<EVariableType> argTypes;
 				
@@ -497,7 +511,8 @@ public:
 					const char* name = f->GetName();
 					if (funcName == name) {
 						ret.instruction = IN_CALLSYS;
-						ret.arg1 = i;
+						ret.arg1 = i; //Function ID = i
+						
 						argTypes = f->GetParams();
 						break;
 					}

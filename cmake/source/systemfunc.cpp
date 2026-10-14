@@ -9,10 +9,11 @@ namespace Runtime {
 	namespace Functional {
 
 #define CREATE(nameString, name, params, code) \
+const u8 CSYSFUNCTION_##name##_PARAMSARRAY[] = params; \
 class CSYSFUNCTION_##name##_DEFINITION : public CSystemFunction { \
 public: \
 	const char* GetName() override {return nameString;} \
-	constexpr std::initializer_list<EVariableType> GetParams() override {return params;} \
+	u8 const* GetParams() override {return CSYSFUNCTION_##name##_PARAMSARRAY;} \
 	void Execute(CRuntime& p_Runtime) override code \
 };
 

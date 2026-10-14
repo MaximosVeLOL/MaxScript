@@ -18,9 +18,13 @@ using u64 = unsigned long long int;
 
 
 
+#define Log std::println
+
+/*
 template<typename... Args>
 void Log(const std::format_string<Args...> p_Format, Args&&... p_Args) {
 	std::println(p_Format, p_Args...);
 }
+*/
 
 MS_END

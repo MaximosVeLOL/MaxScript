@@ -6,7 +6,6 @@
 
 #include <ms/impl/common.hpp>
 #include <limits>
-#include <initializer_list>
 
 MS_STD_BEGIN
 
@@ -88,7 +87,7 @@ public:
 
 	//Indexes
 	Type& at(Count p_Index) {
-		if (xExceededMax(0)) {
+		if (xExceededMax(p_Index)) {
 			throw std::runtime_error("Failed");
 		}
 		return static_cast<Type&>(m_Data[p_Index]);
@@ -135,6 +134,15 @@ public:
 		delete[] m_Data;
 		m_Data = output;
 	}
+	void pop() {
+		m_Length -= 1;
+		Type* output = new Type[m_Length]{ Type() };
+		for (Count i = 0; i < m_Length;i++) {
+			output[i] = m_Data[i];
+		}
+		delete[] m_Data;
+		m_Data = output;
+	}
 
 	//Changing as a whole
 	void operator=(CList<Type, Count>& p_Other) {
@@ -142,12 +150,12 @@ public:
 		m_Data = p_Other.m_Data;
 		m_Length = p_Other.m_Length;
 	}
-	void operator=(std::initializer_list<Type> p_Other) {
+	void operator=(const Type* p_Other) { //Type[]
 		delete[] m_Data;
-		m_Data = new Type[p_Other.size()];
-		m_Length = static_cast<Count>(p_Other.size());
+		m_Length = (sizeof(p_Other) / sizeof(Type));
+		m_Data = new Type[m_Length]{ Type() };
 		for (Count i = 0; i < m_Length;i++) {
-			m_Data[i] = p_Other.data()[i];
+			m_Data[i] = p_Other[i];
 		}
 
 	}
@@ -166,6 +174,7 @@ public:
 	}
 
 	~CList() {
+		return;
 		if (!m_Data)
 			return;
 		delete[] m_Data;
